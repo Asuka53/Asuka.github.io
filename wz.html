@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>菜鸡</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000000;
+            overflow: hidden;
+        }
+        
+        .text {
+            font-size: 48px;
+            font-family: "Microsoft YaHei", sans-serif;
+            color: #ffffff;
+            z-index: 1;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .eva {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-family: "Arial", sans-serif;
+            color: #ffffff;
+            text-decoration: none;
+            z-index: 1;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .eva:hover {
+            text-decoration: underline;
+            color: #00ff00;
+            text-shadow: 0 0 15px rgba(0,255,0,0.7);
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <a href="https://www.evangelion.co.jp/" target="_blank" class="eva">EVA</a>
+    <div class="text">菜鸡</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function setCanvasSize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        setCanvasSize();
+        window.addEventListener('resize', setCanvasSize);
+
+        class Line {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.length = Math.random() * 150 + 100;
+                this.angle = Math.random() * Math.PI * 2;
+                this.attracted = false;
+                this.endAttracted = Math.random() < 0.5;
+                this.hue = Math.random() * 60 + 120;
+                this.glowIntensity = 0;
+                this.attractionTime = 0;
+                this.scatteringForce = 0;
+                this.scatterAngle = Math.random() * Math.PI * 2;
+                this.scatterSpeed = 0;
+            }
+
+            draw() {
+                // 发光效果
+                ctx.shadowBlur = 15 + this.glowIntensity * 10;
+                ctx.shadowColor = `hsla(${this.hue}, 100%, 50%, 0.5)`;
+                
+                const startX = this.x + Math.cos(this.angle) * this.length / 2;
+                const startY = this.y + Math.sin(this.angle) * this.length / 2;
+                const endX = this.x - Math.cos(this.angle) * this.length / 2;
+                const endY = this.y - Math.sin(this.angle) * this.length / 2;
+                
+                // 渐变线条
+                const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+                gradient.addColorStop(0, `hsla(${this.hue}, 100%, 50%, ${0.2 + this.glowIntensity})`);
+                gradient.addColorStop(1, `hsla(${this.hue + 30}, 100%, 50%, ${0.2 + this.glowIntensity})`);
+
+                // 画主线条
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 画端点
+                ctx.beginPath();
+                ctx.arc(startX, startY, 4, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue}, 100%, 50%, ${0.8 + this.glowIntensity})`;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(endX, endY, 4, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue + 30}, 100%, 50%, ${0.8 + this.glowIntensity})`;
+                ctx.fill();
+
+                // 优化蜘蛛网连接线的绘制
+                for (let i = this.index + 1; i < lines.length; i++) {
+                    const otherLine = lines[i];
+                    const otherStartX = otherLine.x + Math.cos(otherLine.angle) * otherLine.length / 2;
+                    const otherStartY = otherLine.y + Math.sin(otherLine.angle) * otherLine.length / 2;
+                    const otherEndX = otherLine.x - Math.cos(otherLine.angle) * otherLine.length / 2;
+                    const otherEndY = otherLine.y - Math.sin(otherLine.angle) * otherLine.length / 2;
+
+                    const dist = Math.hypot(this.x - otherLine.x, this.y - otherLine.y);
+                    if (dist < 300) { // 只检查较近的线条
+                        const connections = [
+                            { p1: [startX, startY], p2: [otherStartX, otherStartY] },
+                            { p1: [endX, endY], p2: [otherEndX, otherEndY] }
+                        ];
+
+                        connections.forEach(conn => {
+                            const dist = Math.hypot(conn.p1[0] - conn.p2[0], conn.p1[1] - conn.p2[1]);
+                            if (dist < 200) {
+                                const alpha = (1 - dist / 200) * 0.3;
+                                ctx.beginPath();
+                                ctx.moveTo(conn.p1[0], conn.p1[1]);
+                                ctx.lineTo(conn.p2[0], conn.p2[1]);
+                                ctx.strokeStyle = `hsla(${this.hue}, 100%, 50%, ${alpha})`;
+                                ctx.lineWidth = 1;
+                                ctx.stroke();
+                            }
+                        });
+                    }
+                }
+
+                ctx.shadowBlur = 0;
+            }
+
+            update(mouseX, mouseY) {
+                const startX = this.x + Math.cos(this.angle) * this.length / 2;
+                const startY = this.y + Math.sin(this.angle) * this.length / 2;
+                const endX = this.x - Math.cos(this.angle) * this.length / 2;
+                const endY = this.y - Math.sin(this.angle) * this.length / 2;
+
+                // 线条之间的相互吸引
+                let isAttractedByOthers = false;
+                let centerX = 0;
+                let centerY = 0;
+                let nearbyCount = 0;
+
+                lines.forEach(otherLine => {
+                    if (otherLine === this) return;
+
+                    const dx = otherLine.x - this.x;
+                    const dy = otherLine.y - this.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist < 150) {
+                        isAttractedByOthers = true;
+                        centerX += otherLine.x;
+                        centerY += otherLine.y;
+                        nearbyCount++;
+                    }
+                });
+
+                // 更新吸引时间计数器和散开效果
+                if (isAttractedByOthers && nearbyCount > 0) {
+                    this.attractionTime++;
+                    
+                    if (this.attractionTime > 90) {
+                        // 计算远离群体中心的方向
+                        centerX /= nearbyCount;
+                        centerY /= nearbyCount;
+                        const dx = this.x - centerX;
+                        const dy = this.y - centerY;
+                        const angle = Math.atan2(dy, dx);
+                        
+                        // 设置固定的散开方向
+                        if (this.scatteringForce === 0) {
+                            this.scatterAngle = angle;
+                            this.scatterSpeed = 0.2;
+                        }
+                        
+                        // 缓慢增加散开力度
+                        this.scatteringForce = Math.min(this.scatteringForce + 0.02, 0.8);
+                        this.scatterSpeed = Math.min(this.scatterSpeed + 0.01, 1.0);
+                    }
+                } else {
+                    this.attractionTime = 0;
+                    this.scatteringForce = Math.max(this.scatteringForce - 0.01, 0);
+                    this.scatterSpeed = Math.max(this.scatterSpeed - 0.01, 0);
+                }
+
+                // 应用散开效果
+                if (this.scatteringForce > 0) {
+                    const moveX = Math.cos(this.scatterAngle) * this.scatterSpeed;
+                    const moveY = Math.sin(this.scatterAngle) * this.scatterSpeed;
+                    
+                    // 平滑地应用速度
+                    this.vx = this.vx * 0.9 + moveX * 0.1;
+                    this.vy = this.vy * 0.9 + moveY * 0.1;
+                    
+                    // 平滑地调整角度
+                    const targetAngle = this.scatterAngle;
+                    const angleDiff = targetAngle - this.angle;
+                    this.angle += angleDiff * 0.02;
+                }
+
+                // 应用更强的阻力
+                this.vx *= 0.95;
+                this.vy *= 0.95;
+
+                // 鼠标吸引效果
+                const dx = this.endAttracted ? (mouseX - endX) : (mouseX - startX);
+                const dy = this.endAttracted ? (mouseY - endY) : (mouseY - startY);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // 更新发光强度
+                this.glowIntensity = Math.max(0, 1 - distance / 200);
+
+                if (distance < 200) {
+                    this.attracted = true;
+                    const angle = Math.atan2(dy, dx);
+                    const force = (200 - distance) / 200;
+                    
+                    if (this.endAttracted) {
+                        this.angle = Math.atan2(mouseY - this.y, mouseX - this.x) + Math.PI;
+                    } else {
+                        this.angle = Math.atan2(mouseY - this.y, mouseX - this.x);
+                    }
+                    
+                    this.vx += Math.cos(angle) * force * 0.7;
+                    this.vy += Math.sin(angle) * force * 0.7;
+                }
+
+                if (this.attracted && distance > 250) {
+                    this.vx += (Math.random() - 0.5) * 5;
+                    this.vy += (Math.random() - 0.5) * 5;
+                    this.attracted = false;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 边界处理
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+            }
+        }
+
+        const lines = [];
+        for (let i = 0; i < 30; i++) { // 减少线条数量到30
+            const line = new Line(
+                Math.random() * canvas.width,
+                Math.random() * canvas.height
+            );
+            line.index = i; // 添加索引
+            lines.push(line);
+        }
+
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // 鼠标事件
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        // 触摸事件
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // 防止滚动
+            mouseX = e.touches[0].clientX;
+            mouseY = e.touches[0].clientY;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // 防止滚动
+            mouseX = e.touches[0].clientX;
+            mouseY = e.touches[0].clientY;
+        });
+
+        // 当触摸结束时，让线条散开
+        canvas.addEventListener('touchend', () => {
+            lines.forEach(line => {
+                if (line.attracted) {
+                    line.vx += (Math.random() - 0.5) * 5;
+                    line.vy += (Math.random() - 0.5) * 5;
+                    line.attracted = false;
+                }
+            });
+        });
+
+        // 添加视口meta标签以优化移动端显示
+        const meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        document.head.appendChild(meta);
+
+        function animate() {
+            // 降低残影效果的不透明度
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; // 从0.1改为0.3，减少拖尾效果
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            lines.forEach(line => {
+                line.update(mouseX, mouseY);
+                line.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // 监听屏幕旋转
+        window.addEventListener('orientationchange', setCanvasSize);
+
+        animate();
+    </script>
+</body>
+</html> 
